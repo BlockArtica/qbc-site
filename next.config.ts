@@ -1,8 +1,12 @@
-import type { NextConfig } from "next";
+import { withNext } from 'next/config';
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+const nextConfig = {
+  reactStrictMode: true,
+  compiler: {
+    // If using React compiler
+    reactRemoveProperties: true,
+  },
 };
 
 export default nextConfig;
+
