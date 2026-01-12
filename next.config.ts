@@ -1,10 +1,10 @@
-import { withNext } from 'next/config';
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  compiler: {
-    // If using React compiler
-    reactRemoveProperties: true,
+  // If you want, you can enable SWC minify for faster builds
+  swcMinify: true,
+  images: {
+    domains: [], // add your external image domains if needed
   },
 };
 
