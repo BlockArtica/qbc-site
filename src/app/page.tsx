@@ -1,48 +1,51 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, Sphere, Cylinder } from '@react-three/drei';
+import { OrbitControls, Stars, Sphere } from '@react-three/drei';
+import Image from 'next/image';
 import * as THREE from 'three';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
 
-function QuantumParticleField({ count = 12000 }) {
-  const points = useRef<THREE.Points>(null);
+// ────────────────────────────────────────────────────────────────
+// Shared Quantum Particle Field
+// ────────────────────────────────────────────────────────────────
+function QuantumParticleField({ count = 12000 }: { count?: number }) {
+  const points = useRef<THREE.Points>(null!);
+  const velocities = useRef<Float32Array>(new Float32Array(count * 3));
+  const initialized = useRef(false);
 
-  const particleData = useMemo(() => {
-    const positions = new Float32Array(count * 3);
-    const velocities = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 28;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 28;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 28;
-
-      velocities[i * 3] = (Math.random() - 0.5) * 0.035;
-      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.035;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.035;
-    }
-
-    return { positions, velocities };
+  useEffect(() => {
+    velocities.current = new Float32Array(count * 3);
+    initialized.current = false;
   }, [count]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!points.current) return;
     const pos = points.current.geometry.attributes.position.array as Float32Array;
+    const vel = velocities.current;
 
+    if (!initialized.current) {
+      for (let i = 0; i < count; i++) {
+        pos[i * 3]     = (Math.random() - 0.5) * 28;
+        pos[i * 3 + 1] = (Math.random() - 0.5) * 28;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * 28;
+        vel[i * 3]     = (Math.random() - 0.5) * 0.035;
+        vel[i * 3 + 1] = (Math.random() - 0.5) * 0.035;
+        vel[i * 3 + 2] = (Math.random() - 0.5) * 0.035;
+      }
+      initialized.current = true;
+    }
+
+    const t = clock.getElapsedTime() * 0.3;
     for (let i = 0; i < count; i++) {
-      pos[i * 3] += particleData.velocities[i * 3];
-      pos[i * 3 + 1] += particleData.velocities[i * 3 + 1];
-      pos[i * 3 + 2] += particleData.velocities[i * 3 + 2];
-
-      pos[i * 3] += (Math.random() - 0.5) * 0.009;
-      pos[i * 3 + 1] += (Math.random() - 0.5) * 0.009;
-      pos[i * 3 + 2] += (Math.random() - 0.5) * 0.009;
+      pos[i * 3]     += vel[i * 3]     + Math.sin(t + i * 0.7) * 0.004;
+      pos[i * 3 + 1] += vel[i * 3 + 1] + Math.cos(t + i * 0.9) * 0.004;
+      pos[i * 3 + 2] += vel[i * 3 + 2] + Math.sin(t + i * 1.1) * 0.004;
 
       const dist = Math.hypot(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
       if (dist > 16) {
-        pos[i * 3] *= 0.975;
+        pos[i * 3]     *= 0.975;
         pos[i * 3 + 1] *= 0.975;
         pos[i * 3 + 2] *= 0.975;
       }
@@ -54,188 +57,239 @@ function QuantumParticleField({ count = 12000 }) {
   return (
     <points ref={points}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[particleData.positions, 3]} />
+        <bufferAttribute attach="attributes-position" args={[new Float32Array(count * 3), 3]} />
       </bufferGeometry>
-      <pointsMaterial
-        size={0.065}
-        color="#00eaff"
-        transparent
-        opacity={0.75}
-        blending={THREE.AdditiveBlending}
-      />
+      <pointsMaterial size={0.068} color="#00f0ff" transparent opacity={0.78} blending={THREE.AdditiveBlending} />
     </points>
   );
 }
 
-function Adinkra3D() {
+// ────────────────────────────────────────────────────────────────
+// Hero Background
+// ────────────────────────────────────────────────────────────────
+function HeroBackground() {
   return (
-    <Canvas camera={{ position: [0, 0, 22] }} style={{ background: 'transparent' }}>
-      <ambientLight intensity={0.7} />
-      <pointLight position={[12, 12, 12]} intensity={2.2} />
-      <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.4} />
-      <QuantumParticleField />
-      <Stars radius={120} depth={60} count={6000} factor={4.2} saturation={0} fade speed={0.6} />
-      <Sphere position={[-3.8, 0, 0]} args={[1.45, 64, 64]}>
-        <meshStandardMaterial color="#ffd700" metalness={0.92} roughness={0.12} />
-      </Sphere>
-      <Sphere position={[3.8, 0, 0]} args={[1.45, 64, 64]}>
-        <meshStandardMaterial color="#00eaff" metalness={0.92} roughness={0.12} />
-      </Sphere>
-      <Cylinder position={[0, 0, 0]} args={[0.14, 0.14, 8.2, 64]} rotation={[0, 0, Math.PI / 2]}>
-        <meshStandardMaterial color="#ffffff" metalness={0.98} roughness={0.06} transparent opacity={0.8} />
-      </Cylinder>
+    <Canvas camera={{ position: [0, 0, 24] }} style={{ background: 'transparent' }}>
+      <ambientLight intensity={0.65} />
+      <pointLight position={[14, 14, 14]} intensity={2.4} color="#ffd700" />
+      <pointLight position={[-14, -14, -14]} intensity={1.8} color="#00f0ff" />
+      <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.35} />
+      <QuantumParticleField count={14000} />
+      <Stars radius={140} depth={70} count={7000} factor={4.8} saturation={0.1} fade speed={0.7} />
     </Canvas>
   );
 }
 
-const tokenFormula = katex.renderToString(
-  '|\\Psi\\rangle = \\sum_{k=0}^{3} c_k |\\phi_k\\rangle',
-  { throwOnError: false }
-);
+// ────────────────────────────────────────────────────────────────
+// Entanglement Bridge Scene
+// ────────────────────────────────────────────────────────────────
+function EntanglementScene() {
+  const groupRef = useRef<THREE.Group>(null!);
 
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    groupRef.current.rotation.y = clock.getElapsedTime() * 0.08;
+  });
+
+  return (
+    <>
+      <group ref={groupRef}>
+        <QuantumParticleField count={28000} />
+        <Sphere args={[4.2, 64, 64]}>
+          <meshPhysicalMaterial color="#ffffff" metalness={0.92} roughness={0.06} clearcoat={1} transmission={0.45} thickness={1.2} emissive="#4b0082" emissiveIntensity={0.7} />
+        </Sphere>
+        <Sphere position={[-12, 0, 0]} args={[2.4, 64, 64]}>
+          <meshPhysicalMaterial color="#ffd700" metalness={1} roughness={0.04} emissive="#ffaa00" emissiveIntensity={1.1} />
+        </Sphere>
+        <Sphere position={[12, 0, 0]} args={[2.4, 64, 64]}>
+          <meshPhysicalMaterial color="#00f0ff" metalness={1} roughness={0.04} emissive="#00ffff" emissiveIntensity={1.3} />
+        </Sphere>
+        <line>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" count={128} array={new Float32Array(128 * 3).map((_, i) => {
+              const t = i / 127;
+              const x = -12 + t * 24;
+              const y = Math.sin(t * Math.PI * 6) * 2.5;
+              const z = Math.cos(t * Math.PI * 4) * 1.8;
+              return i % 3 === 0 ? x : i % 3 === 1 ? y : z;
+            })} itemSize={3} />
+          </bufferGeometry>
+          <lineBasicMaterial color="#00ffff" transparent opacity={0.6} linewidth={2} />
+        </line>
+      </group>
+      <Stars radius={260} depth={120} count={16000} factor={9} saturation={0.7} fade speed={1.5} />
+    </>
+  );
+}
+
+function QuantumEntanglementBridge() {
+  return (
+    <Canvas camera={{ position: [0, 0, 38] }} style={{ background: 'transparent' }}>
+      <ambientLight intensity={0.9} />
+      <pointLight position={[22, 22, 22]} intensity={3.2} color="#7b2cbf" />
+      <pointLight position={[-22, -22, -22]} intensity={2.8} color="#00f0ff" />
+      <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.45} />
+      <EntanglementScene />
+    </Canvas>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Interactive Adinkra Orb
+// ────────────────────────────────────────────────────────────────
+function InteractiveAdinkraOrb() {
+  const [hovered, setHovered] = useState(false);
+  const [clicked, setClicked] = useState(false);
+
+  return (
+    <div className="relative w-72 h-72 md:w-96 md:h-96 mx-auto mt-12 cursor-pointer" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => setClicked(!clicked)}>
+      <motion.div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/15 to-yellow-400/15 blur-2xl" animate={{ opacity: hovered ? 0.9 : 0.5, scale: hovered ? 1.15 : 1 }} transition={{ duration: 0.6 }} />
+      <motion.div className="relative w-full h-full rounded-full overflow-hidden border-2 border-cyan-400/30 shadow-[0_0_40px_rgba(0,234,255,0.25)] p-4" animate={{ scale: hovered ? 1.12 : 1, rotate: clicked ? 360 : 0, boxShadow: hovered ? '0 0 80px rgba(0,234,255,0.55)' : '0 0 40px rgba(0,234,255,0.25)' }} transition={{ duration: 0.8, type: 'spring', stiffness: 180 }}>
+        <Image src="/adinkra-quantum.png" alt="Adinkra Quantum Symbol" fill className="object-contain transition-transform duration-700" />
+        {clicked && (
+          <motion.div className="absolute inset-0 bg-black/65 flex items-center justify-center text-center p-8 rounded-full" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
+            <p className="text-sm md:text-base text-cyan-100 leading-relaxed">Adinkra diagrams graphically encode SUSY multiplets as bipartite graphs — enabling visual symmetry analysis and robust error correction in noisy quantum hardware.</p>
+          </motion.div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// MAIN PAGE – ALL SECTIONS, FULL COMPLEXITY
+// ────────────────────────────────────────────────────────────────
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
       {/* Hero */}
-      <section className="relative h-screen flex items-center justify-center px-6 md:px-12">
-        <div className="absolute inset-0 opacity-35 pointer-events-none">
-          <Adinkra3D />
+      <section className="relative min-h-screen flex flex-col justify-center items-center px-6 md:px-12 py-24">
+        <div className="absolute inset-0 opacity-45 pointer-events-none">
+          <HeroBackground />
         </div>
 
-        <div className="relative z-10 max-w-7xl w-full grid md:grid-cols-2 gap-16 lg:gap-24 items-center">
-          <div>
-            <h1 className="text-8xl md:text-10xl font-bold tracking-tighter leading-none">
-              Qubitcoin
-            </h1>
-            <p className="mt-5 text-4xl md:text-6xl font-light text-[var(--accent-cyan)]/90 leading-tight">
-              Physics-Secured Digital Assets
-            </p>
+        <div className="relative z-10 max-w-7xl w-full text-center">
+          <motion.h1 initial={{ opacity: 0, y: -40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.2, ease: "easeOut" }} className="text-6xl md:text-8xl font-black tracking-tighter bg-gradient-to-r from-yellow-400 to-cyan-300 bg-clip-text text-transparent">
+            Qubitcoin
+          </motion.h1>
 
-            <div className="mt-16 grid grid-cols-2 md:grid-cols-3 gap-6">
-              {[
-                { e: "⚡", t: "Instant finality" },
-                { e: "🔒", t: "Physical unforgeability" },
-                { e: "🌐", t: "Fully decentralized" },
-                { e: "💎", t: "21M fixed supply" },
-                { e: "🔮", t: "SUSY privacy swaps" },
-                { e: "🔗", t: "Ethereum + SOL bridge" },
-              ].map((item, i) => (
-                <div key={i} className="card text-center">
-                  <div className="text-5xl mb-4">{item.e}</div>
-                  <p className="text-lg font-medium">{item.t}</p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4, duration: 1.4 }} className="mt-5 text-lg md:text-2xl font-light italic text-cyan-300/90 max-w-4xl mx-auto">
+            A supersymmetric framework for physics-secured digital assets — where value is protected not by computational effort, but by the immutable laws of quantum mechanics: no-cloning theorem and boson-fermion symmetry.
+          </motion.p>
+
+          {/* Feature cards */}
+          <div className="mt-12 grid grid-cols-2 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+            {[
+              { emoji: "⚡", text: "Instant finality", color: "cyan" },
+              { emoji: "🔒", text: "Physical unforgeability", color: "yellow" },
+              { emoji: "🌐", text: "Fully decentralized", color: "cyan" },
+              { emoji: "💎", text: "21M fixed supply", color: "yellow" },
+              { emoji: "🔮", text: "Entangled privacy swaps", color: "cyan" },
+              { emoji: "🔗", text: "Ethereum & Solana bridge", color: "yellow" },
+            ].map((item, i) => (
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 + i * 0.1, duration: 0.8 }} className="bg-black/25 backdrop-blur-lg border border-white/10 hover:border-cyan-500/30 rounded-xl p-5 text-center transition-all hover:shadow-cyan-500/20">
+                <div className={`text-4xl mb-2 ${item.color === "cyan" ? "text-cyan-400" : "text-yellow-400"}`}>{item.emoji}</div>
+                <p className="text-base font-medium text-gray-200">{item.text}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Quantum Token State Showcase – Horizontal & Clean */}
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1.1 }} className="mt-16 w-full max-w-5xl mx-auto">
+            <div className="relative bg-black/35 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-8 shadow-lg shadow-cyan-900/20">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                <div className="text-center md:text-right space-y-2">
+                  <p className="text-lg font-semibold text-cyan-300">A token is</p>
+                  <p className="text-sm text-gray-300 leading-relaxed max-w-xs ml-auto">
+                    a quantum entity, provably unique and tamper-evident by physical law
+                  </p>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-12 flex flex-wrap gap-6">
-              <a
-                href="https://t.me/Qu_Bitcoin"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="high-tech-btn"
-              >
-                Join Telegram
-              </a>
-              <a
-                href="https://x.com/Qu_bitcoin"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="high-tech-btn"
-              >
-                Follow on X
-              </a>
-            </div>
-          </div>
+                <div className="flex justify-center">
+                  <div className="relative w-56 h-56 md:w-72 md:h-72">
+                    <Image src="/adinkra-quantum.png" alt="SUSY Multiplet" fill className="object-contain drop-shadow-2xl" priority />
+                  </div>
+                </div>
 
-          <div className="card text-center py-12 px-8">
-            <h3 className="text-4xl font-semibold mb-8">Quantum Token State</h3>
-            <div
-              className="text-4xl mb-8 text-[var(--accent-cyan)]"
-              dangerouslySetInnerHTML={{ __html: tokenFormula }}
-            />
-            <p className="text-gray-300 text-lg">
-              SUSY multiplet — inherently unforgeable by the no-cloning theorem
-            </p>
+                <div className="text-center md:text-left space-y-2">
+                  <p className="text-lg font-semibold text-yellow-300">SUSY multiplet</p>
+                  <p className="text-sm text-gray-300 leading-relaxed max-w-xs">
+                    boson-fermion pair, secured forever by the no-cloning theorem
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* CTA */}
+          <div className="mt-12 flex flex-col sm:flex-row gap-6 justify-center">
+            <a href="https://t.me/Qu_Bitcoin" target="_blank" rel="noopener noreferrer" className="px-10 py-5 text-lg font-medium bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all hover:scale-105">
+              Join Community
+            </a>
+            <a href="https://x.com/Qu_bitcoin" target="_blank" rel="noopener noreferrer" className="px-10 py-5 text-lg font-medium bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 transition-all hover:scale-105">
+              Follow on X
+            </a>
           </div>
         </div>
+
+        <InteractiveAdinkraOrb />
       </section>
 
       {/* Vision */}
-      <section className="py-32 px-6 md:px-12 max-w-7xl mx-auto text-center">
-        <h2 className="text-6xl font-bold mb-16">The Vision</h2>
-        <p className="text-xl max-w-4xl mx-auto mb-20 text-gray-300">
-          Qubitcoin secures value using the immutable laws of quantum mechanics — supersymmetry and no-cloning — instead of computational puzzles. 
-          Extremely low-energy PoSA consensus on NISQ hardware, 21 million cap, native privacy, and seamless bridges to classical DeFi.
+      <motion.section initial={{ opacity: 0, y: 60 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1 }} className="py-32 px-6 md:px-12 max-w-7xl mx-auto text-center relative z-10">
+        <h2 className="text-5xl md:text-6xl font-bold mb-8 text-cyan-400/90">The Vision</h2>
+        <p className="text-base md:text-lg max-w-4xl mx-auto leading-relaxed text-gray-300">
+          In the post-quantum era, classical blockchains face existential threats from quantum computers and unsustainable energy consumption. Qubitcoin redefines digital scarcity — value is anchored in the fundamental laws of physics: the no-cloning theorem and supersymmetry — creating tokens that are inherently secure, tamper-evident, and verifiable by nature itself.
         </p>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="card">
-            <h3 className="text-3xl font-semibold mb-5">Beyond Classical</h3>
-            <p className="text-gray-300">Replaces energy-hungry PoW and quantum-vulnerable signatures with physical guarantees.</p>
-          </div>
-          <div className="card">
-            <h3 className="text-3xl font-semibold mb-5">Millijoule Efficiency</h3>
-            <p className="text-gray-300">Proofs cost millijoules instead of kilowatt-hours — sustainable from day one.</p>
-          </div>
-          <div className="card">
-            <h3 className="text-3xl font-semibold mb-5">Scientific Value</h3>
-            <p className="text-gray-300">Network produces real SUSY-breaking data for fundamental physics research.</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="section-divider" />
+      </motion.section>
 
       {/* SUSY Tokens */}
-      <section className="py-32 px-6 md:px-12 bg-[var(--bg-secondary)]">
+      <motion.section initial={{ opacity: 0, y: 60 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1 }} className="py-32 px-6 md:px-12 bg-black/40 relative z-10">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-6xl font-bold text-center mb-16">Supersymmetric Tokens</h2>
-          <p className="text-xl text-center max-w-4xl mx-auto mb-16 text-gray-300">
-            Boson-fermion multiplets locked by supersymmetry. Any tampering destroys the quantum symmetry — instantly detectable.
+          <h2 className="text-5xl md:text-6xl font-bold text-center mb-8 text-cyan-400/90">Supersymmetric Tokens</h2>
+          <p className="text-base md:text-lg max-w-4xl mx-auto mb-10 text-gray-300 leading-relaxed text-center">
+            At the core of Qubitcoin lies supersymmetry — a perfect pairing of bosonic value storage with fermionic integrity enforcement. Any attempt to copy, tamper or forge breaks the symmetry and violates the no-cloning theorem — instantly detectable by the entire network.
           </p>
-          <div className="h-[700px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-            <Adinkra3D />
+          <div className="h-[600px] md:h-[900px] rounded-2xl overflow-hidden border border-cyan-800/30 shadow-2xl">
+            <QuantumEntanglementBridge />
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* PoSa Consensus */}
-      <section className="py-32 px-6 md:px-12">
+      {/* PoSA */}
+      <motion.section initial={{ opacity: 0, y: 60 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1 }} className="py-32 px-6 md:px-12 relative z-10">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-6xl font-bold mb-16">Proof-of-SUSY-Alignment</h2>
-          <p className="text-xl max-w-4xl mx-auto mb-16 text-gray-300">
-            Miners solve randomized SUSY Hamiltonians using VQE on NISQ hardware (Heron ~$1.60/hr). 
-            Ground state below adaptive threshold → proof. ~100 iterations. Millijoules per block.
+          <h2 className="text-5xl md:text-6xl font-bold mb-8 text-cyan-400/90">Proof-of-SUSY-Alignment (PoSA)</h2>
+          <p className="text-base md:text-lg max-w-4xl mx-auto leading-relaxed text-gray-300">
+            Miners solve randomized SUSY Hamiltonians using Variational Quantum Eigensolver (VQE) on NISQ hardware. Achieving ground state below threshold = valid proof. ~100 iterations, millijoules per block. Rewards halve every 210,000 blocks + pooled transaction fees.
           </p>
-          {/* You can re-add the chart here later if desired */}
         </div>
-      </section>
+      </motion.section>
 
-      <div className="section-divider" />
-
-      {/* wQBC Bridge */}
-      <section className="py-32 px-6 md:px-12 bg-[var(--bg-secondary)]">
+      {/* Wrapped QBC Bridge */}
+      <motion.section initial={{ opacity: 0, y: 60 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1 }} className="py-32 px-6 md:px-12 bg-black/40 relative z-10">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-6xl font-bold mb-16">Wrapped QBC Bridge</h2>
-          <p className="text-xl max-w-4xl mx-auto mb-16 text-gray-300">
-            Lock native QBC → verified SUSY alignment → mint wQBC ERC-20 on Ethereum. 
-            Burn → oracle re-verifies → release original. Post-quantum secure.
+          <h2 className="text-5xl md:text-6xl font-bold mb-8 text-cyan-400/90">Wrapped QBC Bridge</h2>
+          <p className="text-base md:text-lg max-w-4xl mx-auto mb-10 text-gray-300 leading-relaxed">
+            Lock native QBC → verify SUSY alignment → mint wQBC on Ethereum. Burn wQBC → oracle releases original. Post-quantum secure hybrid bridge enabling DeFi liquidity while preserving core physics-based security.
           </p>
-          {/* Add simple bridge diagram / ReactFlow here later if you want */}
+          <div className="h-[600px] md:h-[900px] rounded-2xl overflow-hidden border border-cyan-800/30 shadow-2xl">
+            <QuantumEntanglementBridge />
+          </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Final CTA */}
-      <section className="py-40 px-6 md:px-12 text-center">
-        <h2 className="text-7xl font-bold mb-10">The Future is Physical</h2>
-        <p className="text-2xl text-gray-300 mb-16 max-w-4xl mx-auto">
-          Join the paradigm shift from computational trust to physics-enforced scarcity.
+      <section className="py-32 px-6 md:px-12 text-center relative z-10">
+        <h2 className="text-5xl md:text-6xl font-black mb-8 text-cyan-400/90">The Future is Physical</h2>
+        <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-4xl mx-auto">
+          Qubitcoin — secured not by code, but by the laws of nature.
         </p>
-        <div className="flex flex-wrap justify-center gap-8">
-          <a href="https://t.me/Qu_Bitcoin" target="_blank" rel="noopener noreferrer" className="high-tech-btn text-xl">
-            Join Community
+        <div className="flex flex-wrap justify-center gap-6">
+          <a href="https://t.me/Qu_Bitcoin" target="_blank" rel="noopener noreferrer" className="px-10 py-5 text-lg font-medium bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all hover:scale-105">
+            Join the Community
           </a>
-          <a href="https://x.com/Qu_bitcoin" target="_blank" rel="noopener noreferrer" className="high-tech-btn text-xl">
+          <a href="https://x.com/Qu_bitcoin" target="_blank" rel="noopener noreferrer" className="px-10 py-5 text-lg font-medium bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 transition-all hover:scale-105">
             Follow Development
           </a>
         </div>
