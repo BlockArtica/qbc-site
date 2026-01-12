@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Add any other config options here if needed (e.g., images, env, etc.)
-  // Example: 
-  // images: { remotePatterns: [{ protocol: 'https', hostname: '**' }] },
+  // Optional: Add these if needed for images or other features
+  // images: {
+  //   remotePatterns: [
+  //     { protocol: 'https', hostname: '**' },
+  //   ],
+  // },
 };
 
 export default nextConfig;
